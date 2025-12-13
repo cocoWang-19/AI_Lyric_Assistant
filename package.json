@@ -1,0 +1,26 @@
+{
+  "name": "ai_lyric_assistant",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google-cloud/aiplatform": "^6.0.0",
+    "@google-cloud/text-to-speech": "^6.4.0",
+    "@google/genai": "^1.30.0",
+    "@google/generative-ai": "^0.24.1",
+    "@grpc/grpc-js": "^1.14.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "mysql2": "^3.15.3",
+    "node-fetch": "^3.3.2"
+  }
+}
