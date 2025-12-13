@@ -30,23 +30,40 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // 新增：讀取 Gemini API
 // 變動區域 2: 定義 GCS 儲存桶變數 
 const GCS_BUCKET_NAME = process.env.GCS_BUCKET_NAME;
 
-// *** LLM 客戶端：使用新的 GenAI 客户端，通過 API KEY 驗證 ***
-const ai = new GoogleGenAI({ 
-    apiKey: GEMINI_API_KEY, // 使用 API Key
-});
-
-// *** TTS 客戶端：保持不變，使用服務帳戶密鑰驗證 ***
-// TTSClient 仍需要 GOOGLE_APPLICATION_CREDENTIALS
-const ttsClient = new TextToSpeechClient();
-
-// GCS 客戶端自動使用 GOOGLE_APPLICATION_CREDENTIALS 服務帳號
-const storage = new Storage({ projectId: project });
-
-const app = express();
-
 // ----------------------------------------------------
 // I. 初始化 AI 服務
 // ----------------------------------------------------
+// 優先從環境變數讀取 JSON 憑證字串 
+const serviceAccountJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GCP_SA_KEY; 
+
+let credentials = {};
+if (serviceAccountJson) {
+    try {
+        // 解析 JSON 字串為憑證物件
+        credentials = JSON.parse(serviceAccountJson);
+        console.log('[GCP Credential] Using JSON string from environment variable (Cloud Mode).');
+    } catch (e) {
+        console.error('【致命錯誤】無法解析 GCP 服務帳號 JSON 字串！', e);
+        // 如果解析失敗，credentials 將保持空，讓客戶端嘗試默認認證
+    }
+} else {
+    console.log('[GCP Credential] No JSON string found. Falling back to default authentication (Local .env file or Railway Service Link).');
+}
+
+// *** LLM 客戶端：使用新的 GenAI 客户端，通過 API KEY 驗證 ***
+const ai = new GoogleGenAI({ 
+    apiKey: GEMINI_API_KEY, // 使用 API Key
+});
+
+
+// *** TTS 客戶端：使用服務帳戶密鑰驗證 ***
+// 如果 credentials 物件有內容（即雲端模式），則用它來初始化
+const ttsClient = new TextToSpeechClient(credentials.private_key ? { credentials } : {});
+
+// GCS 客戶端：同理，如果 credentials 有內容，則用它來初始化
+const storage = new Storage(credentials.private_key ? { credentials, projectId: project } : { projectId: project });
+
+const app = express();
 
 console.log('--- 配置檢查 ---');
 console.log(`GCP_PROJECT_ID: "${project}"`);
