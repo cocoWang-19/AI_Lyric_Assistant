@@ -85,19 +85,21 @@ function getEnglishStyle(chineseStyle) {
     const style = chineseStyle.trim();
     return ttsStyleMap[style] || 'default';
 }
+// Railway 服務會自動注入 RAILWAY_ENVIRONMENT_ID
+const isCloudEnvironment = !!process.env.RAILWAY_ENVIRONMENT_ID;
 // 建立資料庫連接池 
 const pool = mysql.createPool({
-    host: process.env.MYSQLHOST || process.env.DB_HOST,
-    user: process.env.MYSQLUSER || process.env.DB_USER,
+    host: isCloudEnvironment ? 'ai_lyric_assistant.railway.internal' : process.env.MYSQLHOST || process.env.DB_HOST,
+    user: process.env.MYSQLUSER || process.env.DB_USER,
     password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD,
     database: process.env.MYSQLDATABASE || process.env.DB_NAME,
     port: process.env.MYSQLPORT || 3306,
     waitForConnections: true,
     connectionLimit: 10,
 
-    ssl: process.env.DB_HOST !== 'localhost' ? { 
-        rejectUnauthorized: false 
-    } : null
+    ssl: isCloudEnvironment ? { 
+        rejectUnauthorized: false 
+    } : null
 });
 
     async function saveAnalysisHistory(inputLyrics, analysisResult, genderUsed, audioUrl) {
