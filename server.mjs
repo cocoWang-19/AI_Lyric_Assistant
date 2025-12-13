@@ -9,6 +9,9 @@ import { GoogleGenAI } from "@google/genai"; // 注意導入方式修正
 // --- TTS 客戶端使用舊的 @google-cloud/text-to-speech ---
 import { TextToSpeechClient } from "@google-cloud/text-to-speech";
 
+// 變動區域 1: 導入 GCS 模組 
+import { Storage } from "@google-cloud/storage";
+
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
@@ -27,6 +30,9 @@ const location = "us-central1";
 const MODEL_ID = "gemini-2.5-flash";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // 新增：讀取 Gemini API Key
 
+// 變動區域 2: 定義 GCS 儲存桶變數 
+const GCS_BUCKET_NAME = process.env.GCS_BUCKET_NAME;
+
 // *** LLM 客戶端：使用新的 GenAI 客户端，通過 API KEY 驗證 ***
 const ai = new GoogleGenAI({ 
     apiKey: GEMINI_API_KEY, // 使用 API Key
@@ -35,6 +41,9 @@ const ai = new GoogleGenAI({
 // *** TTS 客戶端：保持不變，使用服務帳戶密鑰驗證 ***
 // TTSClient 仍需要 GOOGLE_APPLICATION_CREDENTIALS
 const ttsClient = new TextToSpeechClient();
+
+// GCS 客戶端自動使用 GOOGLE_APPLICATION_CREDENTIALS 服務帳號
+const storage = new Storage({ projectId: project });
 
 const app = express();
 
@@ -149,17 +158,34 @@ async function synthesizeSpeech(text, style, gender) {
         audioConfig: { audioEncoding: "MP3" },
     };
 
-    fs.mkdirSync(path.join(__dirname, "public"), { recursive: true });
+    //fs.mkdirSync(path.join(__dirname, "public"), { recursive: true });
 
     // TTS Client 使用已配置的 GOOGLE_APPLICATION_CREDENTIALS
     const [response] = await ttsClient.synthesizeSpeech(request); 
 
-    const audioFileName = `audio-${Date.now()}.mp3`;
-    const audioFilePath = path.join(__dirname, 'public', audioFileName);
+    if (!GCS_BUCKET_NAME) {
+        throw new Error("GCS_BUCKET_NAME 環境變數未設置。無法儲存音頻。");
+    }
+    const bucket = storage.bucket(GCS_BUCKET_NAME);
+    // 確保檔案名稱唯一
+    const audioFileName = `audio-${Date.now()}-${Math.random().toString(36).substring(2, 9)}.mp3`;
+    const file = bucket.file(audioFileName);
 
-    await fs.promises.writeFile(audioFilePath, response.audioContent, 'binary');
+    // 上傳音頻數據 (Buffer) 到 GCS
+    await file.save(response.audioContent, {
+        metadata: {
+            contentType: 'audio/mp3',
+            cacheControl: 'public, max-age=31536000', // 啟用快取
+        },
+        public: true, // 確保文件是公開可讀的
+    });
 
-    return `/${audioFileName}`;
+    // 生成 GCS 的公開 URL
+    const gcsPublicUrl = `https://storage.googleapis.com/${GCS_BUCKET_NAME}/${audioFileName}`;
+    
+    console.log(`[GCS] 音頻已上傳至 GCS: ${gcsPublicUrl}`);
+
+     return gcsPublicUrl;
 
 }
 // ----------------------------------------------------
