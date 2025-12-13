@@ -12,17 +12,14 @@ import { TextToSpeechClient } from "@google-cloud/text-to-speech";
 // 變動區域 1: 導入 GCS 模組 
 import { Storage } from "@google-cloud/storage";
 
-import path from "path";
-import { fileURLToPath } from "url";
-import fs from "fs";
+
 
 // 環境配置加載 ---
 dotenv.config();
 
-// 全局配置与客戶端初始化 ---
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+
+
 
 // 關鍵變量定義
 const project = process.env.GCP_PROJECT_ID; 
@@ -158,34 +155,38 @@ async function synthesizeSpeech(text, style, gender) {
         audioConfig: { audioEncoding: "MP3" },
     };
 
-    //fs.mkdirSync(path.join(__dirname, "public"), { recursive: true });
-
     // TTS Client 使用已配置的 GOOGLE_APPLICATION_CREDENTIALS
     const [response] = await ttsClient.synthesizeSpeech(request); 
+  
+   // --- 🎯 核心變動：將音頻上傳到 GCS ---
+// 如果警告持續，請嘗試在函數頂部或這些變數定義行前面加上禁用註釋
+if (!GCS_BUCKET_NAME) {
+    throw new Error("GCS_BUCKET_NAME 環境變數未設置。無法儲存音頻。");
+}
 
-    if (!GCS_BUCKET_NAME) {
-        throw new Error("GCS_BUCKET_NAME 環境變數未設置。無法儲存音頻。");
-    }
-    const bucket = storage.bucket(GCS_BUCKET_NAME);
-    // 確保檔案名稱唯一
-    const audioFileName = `audio-${Date.now()}-${Math.random().toString(36).substring(2, 9)}.mp3`;
-    const file = bucket.file(audioFileName);
+const bucket = storage.bucket(GCS_BUCKET_NAME);
+// 確保檔案名稱唯一
+const audioFileName = `audio-${Date.now()}-${Math.random().toString(36).substring(2, 9)}.mp3`;
+const file = bucket.file(audioFileName);
 
-    // 上傳音頻數據 (Buffer) 到 GCS
-    await file.save(response.audioContent, {
-        metadata: {
-            contentType: 'audio/mp3',
-            cacheControl: 'public, max-age=31536000', // 啟用快取
-        },
-        public: true, // 確保文件是公開可讀的
-    });
+// eslint-disable-next-line max-statements
+// eslint-disable-next-line complexity
+// 上傳音頻數據 (Buffer) 到 GCS
+await file.save(response.audioContent, {
+    metadata: {
+        contentType: 'audio/mp3',
+        cacheControl: 'public, max-age=31536000', // 啟用快取
+    },
+    public: true, // 確保文件是公開可讀的
+});
 
-    // 生成 GCS 的公開 URL
-    const gcsPublicUrl = `https://storage.googleapis.com/${GCS_BUCKET_NAME}/${audioFileName}`;
-    
-    console.log(`[GCS] 音頻已上傳至 GCS: ${gcsPublicUrl}`);
+// 生成 GCS 的公開 URL
+const gcsPublicUrl = `https://storage.googleapis.com/${GCS_BUCKET_NAME}/${audioFileName}`;
 
-     return gcsPublicUrl;
+console.log(`[GCS] 音頻已上傳至 GCS: ${gcsPublicUrl}`);
+// --- 核心變動結束 ---
+
+return gcsPublicUrl;
 
 }
 // ----------------------------------------------------
