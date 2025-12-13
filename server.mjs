@@ -177,7 +177,7 @@ await file.save(response.audioContent, {
         contentType: 'audio/mp3',
         cacheControl: 'public, max-age=31536000', // 啟用快取
     },
-    public: true, // 確保文件是公開可讀的
+    
 });
 
 // 生成 GCS 的公開 URL
