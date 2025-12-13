@@ -1,5 +1,5 @@
 
-const RAILWAY_URL = 'https://cocowang-19-ailyricassistant-production.up.railway.app'; // 定義公開的 Railway URL
+const RAILWAY_URL = 'https://ailyricassistant-production-13a6.up.railway.app'; // 定義公開的 Railway URL
 
 const LOCAL_URL = 'http://localhost:3000'; // 定義本地的 URL
 let BACKEND_URL 
