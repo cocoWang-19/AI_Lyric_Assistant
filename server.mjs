@@ -89,18 +89,23 @@ function getEnglishStyle(chineseStyle) {
 const isCloudEnvironment = !!process.env.RAILWAY_ENVIRONMENT_ID;
 // 建立資料庫連接池 
 const pool = mysql.createPool({
-    host: isCloudEnvironment ? 'ai_lyric_assistant.railway.internal' : process.env.MYSQLHOST || process.env.DB_HOST,
-    user: process.env.MYSQLUSER || process.env.DB_USER,
-    password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD,
-    database: process.env.MYSQLDATABASE || process.env.DB_NAME,
-    port: process.env.MYSQLPORT || 3306,
+    host: process.env.MYSQLHOST || 'localhost',
+    port: Number(process.env.MYSQLPORT) || 3306,
+    user: process.env.MYSQLUSER || 'root',
+    password: process.env.MYSQLPASSWORD || '',   // 本地 root 密碼或留空
+    database: process.env.MYSQLDATABASE || 'lyric_db',
     waitForConnections: true,
     connectionLimit: 10,
-
-    ssl: isCloudEnvironment ? { 
-        rejectUnauthorized: false 
-    } : null
+    ssl: process.env.MYSQLHOST ? { rejectUnauthorized: false } : null // 本地不用 SSL
 });
+pool.getConnection()
+  .then(conn => {
+    console.log("MySQL connected:", process.env.MYSQLHOST);
+    conn.release();
+  })
+  .catch(err => {
+    console.error("MySQL connection failed:", err);
+  });
 
     async function saveAnalysisHistory(inputLyrics, analysisResult, genderUsed, audioUrl) {
     try {
