@@ -89,14 +89,18 @@ function getEnglishStyle(chineseStyle) {
 const isCloudEnvironment = !!process.env.RAILWAY_ENVIRONMENT_ID;
 // 建立資料庫連接池 
 const pool = mysql.createPool({
-    host: process.env.MYSQLHOST || 'localhost',
-    port: Number(process.env.MYSQLPORT) || 3306,
-    user: process.env.MYSQLUSER || 'root',
-    password: process.env.MYSQLPASSWORD || '',   // 本地 root 密碼或留空
-    database: process.env.MYSQLDATABASE || 'lyric_db',
-    waitForConnections: true,
-    connectionLimit: 10,
-    ssl: process.env.MYSQLHOST ? { rejectUnauthorized: false } : null // 本地不用 SSL
+    // 使用最簡潔的版本，依賴環境變數（已確保 DB_HOST=localhost, DB_PORT=3306 在本地.env中）
+    host: process.env.MYSQLHOST || process.env.DB_HOST,
+    user: process.env.MYSQLUSER || process.env.DB_USER,
+    password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD,
+    database: process.env.MYSQLDATABASE || process.env.DB_NAME,
+    port: process.env.MYSQLPORT || 3306, 
+    
+    // 【核心修復點】：只有在雲端環境中才啟用 SSL
+    ssl: isCloudEnvironment ? { 
+        // 在 Railway 雲端中，我們通常不驗證證書 (rejectUnauthorized: false)
+        rejectUnauthorized: false 
+    } : null, // 本地環境 (isCloudEnvironment=false) 則設定為 null (不使用 SSL)
 });
 pool.getConnection()
   .then(conn => {
